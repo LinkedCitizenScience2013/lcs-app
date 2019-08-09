@@ -105,7 +105,7 @@ public class PreferencesHandler implements PreferenceConstants {
 
     public static String getTotalTime(Context context){
         return PreferenceManager.getDefaultSharedPreferences(context)
-                .getString(PREF_TOTAL_TIME, "");
+                .getString(PREF_TOTAL_TIME, "0s");
     }
 
     public static void setTotalTime(Context context, String time){

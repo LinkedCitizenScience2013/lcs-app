@@ -20,16 +20,23 @@ package org.envirocar.app.views.obdselection;
 
 import android.bluetooth.BluetoothDevice;
 import android.content.Context;
-import androidx.appcompat.widget.AppCompatRadioButton;
+
+import androidx.annotation.NonNull;
+import androidx.constraintlayout.widget.ConstraintLayout;
+import androidx.recyclerview.widget.RecyclerView;
+
+import android.content.res.ColorStateList;
+import android.graphics.Color;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ArrayAdapter;
-import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.TextView;
 
 import org.envirocar.app.R;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import butterknife.ButterKnife;
 import butterknife.BindView;
@@ -37,7 +44,10 @@ import butterknife.BindView;
 /**
  * @author dewall
  */
-public class OBDDeviceListAdapter extends ArrayAdapter<BluetoothDevice> {
+public class OBDDeviceAdapter extends RecyclerView.Adapter<OBDDeviceAdapter.OBDViewHolder> {
+
+    private final String SELECTED_COLOR = "#0166A0";
+    private final String UNSELECTED_COLOR = "#757575";
 
     /**
      * callback interface for the selection callback.
@@ -56,13 +66,17 @@ public class OBDDeviceListAdapter extends ArrayAdapter<BluetoothDevice> {
          * @param device the device to delete.
          */
         void onDeleteOBDDevice(BluetoothDevice device);
+
+        void createDialog(BluetoothDevice device, View view);
     }
 
     private final boolean mIsPairedList;
+    private Context context;
     private final OnOBDListActionCallback mCallback;
 
     private BluetoothDevice mSelectedBluetoothDevice;
-    private AppCompatRadioButton mSelectedRadioButton;
+    private ImageView mSelectedImageView;
+    List<BluetoothDevice> pairedDevices = new ArrayList<>();
 
     /**
      * Constructor.
@@ -70,8 +84,8 @@ public class OBDDeviceListAdapter extends ArrayAdapter<BluetoothDevice> {
      * @param context    the context of the current scope.
      * @param pairedList is this a list showing the paired elements?
      */
-    public OBDDeviceListAdapter(Context context, boolean pairedList) {
-        super(context, -1);
+    public OBDDeviceAdapter(Context context, boolean pairedList) {
+        this.context = context;
         mIsPairedList = pairedList;
         mCallback = null;
     }
@@ -82,9 +96,9 @@ public class OBDDeviceListAdapter extends ArrayAdapter<BluetoothDevice> {
      * @param context    The context of the current scope.
      * @param pairedList
      */
-    public OBDDeviceListAdapter(Context context, boolean pairedList, OnOBDListActionCallback
+    public OBDDeviceAdapter(Context context, boolean pairedList, OnOBDListActionCallback
             callback) {
-        super(context, -1);
+        this.context = context;
         mIsPairedList = pairedList;
         mCallback = callback;
     }
@@ -96,79 +110,100 @@ public class OBDDeviceListAdapter extends ArrayAdapter<BluetoothDevice> {
      * @param pairedList    true if this should show a radio button.
      * @param defaultDevice The selected
      */
-    public OBDDeviceListAdapter(Context context, boolean pairedList, OnOBDListActionCallback
+    public OBDDeviceAdapter(Context context, boolean pairedList, OnOBDListActionCallback
             callback, BluetoothDevice defaultDevice) {
         this(context, pairedList, callback);
         mSelectedBluetoothDevice = defaultDevice;
     }
 
+    public void addAll(List<BluetoothDevice> pairedDevices){
+        this.pairedDevices = pairedDevices;
+    }
+
+    public void add(BluetoothDevice device){
+        pairedDevices.add(device);
+        notifyDataSetChanged();
+    }
+
+    public void remove(BluetoothDevice device){
+        pairedDevices.remove(device);
+        notifyDataSetChanged();
+    }
+
+    @NonNull
     @Override
-    public View getView(int position, View convertView, ViewGroup parent) {
-        // Get the item from the given poosition
-        final BluetoothDevice device = getItem(position);
+    public OBDViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+        View itemView = LayoutInflater.from(parent.getContext())
+                .inflate(R.layout.activity_obd_selection_layout_paired_list_entry, parent, false);
 
-        ViewHolder holder;
-        // Check if an existing view is being reused, otherwise inflate the view
-        if (convertView == null) {
-            convertView = LayoutInflater.from(getContext()).inflate(R.layout
-                    .activity_obd_selection_layout_paired_list_entry, parent, false);
-            holder = new ViewHolder(convertView);
+        return new OBDViewHolder(itemView);
+    }
 
-            // if this list is used for a paired list then we show an addition radio button for
-            // the selection
-            if (mIsPairedList) {
-                holder.mRadioButton.setVisibility(View.VISIBLE);
-                holder.mDeleteButton.setVisibility(View.VISIBLE);
-            }
-
-            convertView.setTag(holder);
-        } else {
-            holder = (ViewHolder) convertView.getTag();
-        }
-
+    @Override
+    public void onBindViewHolder(@NonNull OBDViewHolder holder, int position) {
+        final BluetoothDevice device = pairedDevices.get(position);
         holder.mTextView.setText(device.getName());
-        holder.mRadioButton.setChecked(false);
+        holder.mTextViewAdd.setText(device.getAddress());
+        holder.mImageView.setImageTintList(ColorStateList.valueOf(Color.parseColor(UNSELECTED_COLOR)));
 
         // If there exists an already selected bluetooth device and the device of this entry
         // matches the selected device, then set it to checked.
         if (mSelectedBluetoothDevice != null) {
             if (mSelectedBluetoothDevice.getName().equals(device.getName())) {
-                mSelectedRadioButton = holder.mRadioButton;
-                mSelectedRadioButton.setChecked(true);
+                mSelectedImageView = holder.mImageView;
+                mSelectedImageView.setImageTintList(ColorStateList.valueOf(Color.parseColor(SELECTED_COLOR)));
                 mSelectedBluetoothDevice = device;
             }
         }
 
-        holder.mDeleteButton.setOnClickListener(v -> mCallback.onDeleteOBDDevice(device));
+        holder.obdSelectionLayout.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                if(!mIsPairedList)
+                    mCallback.createDialog(device, holder.mContentView);
+                else{
+                    if (mSelectedBluetoothDevice != null && mSelectedBluetoothDevice.getAddress()
+                            .equals(device.getAddress()))
+                        return;
 
-        // Set the radiobutton on click listener.
-        holder.mRadioButton.setOnClickListener(v -> {
-            // When the clicked radio button corresponds to the bluetooth device that is
-            // already selected, then do nothing.
-            if (mSelectedBluetoothDevice != null && mSelectedBluetoothDevice.getAddress()
-                    .equals(device.getAddress()))
-                return;
+                    if (mSelectedImageView != null) {
+                        mSelectedImageView.setImageTintList(ColorStateList.valueOf(Color.parseColor(SELECTED_COLOR)));
+                        // Bug. This needs to happen.. dont know why exactly.
+                        notifyDataSetChanged();
+                    }
 
-            if (mSelectedRadioButton != null) {
-                mSelectedRadioButton.setChecked(false);
-                // Bug. This needs to happen.. dont know why exactly.
-                notifyDataSetInvalidated();
+                    mSelectedImageView = holder.mImageView;
+                    mSelectedImageView.setImageTintList(ColorStateList.valueOf(Color.parseColor(SELECTED_COLOR)));
+                    mSelectedBluetoothDevice = device;
+
+                    // Callback.
+                    mCallback.onOBDDeviceSelected(device);
+                }
             }
-
-            mSelectedRadioButton = holder.mRadioButton;
-            mSelectedRadioButton.setChecked(true);
-            mSelectedBluetoothDevice = device;
-
-            // Callback.
-            mCallback.onOBDDeviceSelected(device);
         });
 
-        return convertView;
+        holder.obdSelectionLayout.setOnLongClickListener(new View.OnLongClickListener() {
+            @Override
+            public boolean onLongClick(View view) {
+                if(mIsPairedList)
+                    mCallback.onDeleteOBDDevice(device);
+                return false;
+            }
+        });
+    }
+
+    public Boolean isEmpty(){
+        return pairedDevices.isEmpty();
+    }
+
+    public void clear(){
+        pairedDevices.clear();
+        notifyDataSetChanged();
     }
 
     @Override
-    public BluetoothDevice getItem(int position) {
-        return super.getItem(position);
+    public int getItemCount() {
+        return pairedDevices.size();
     }
 
     /**
@@ -182,15 +217,15 @@ public class OBDDeviceListAdapter extends ArrayAdapter<BluetoothDevice> {
             return;
 
         // If there is any other bluetooth device selected, then uncheck it first...
-        if(mSelectedRadioButton != null){
-            mSelectedRadioButton.setChecked(false);
-            mSelectedRadioButton = null;
+        if(mSelectedImageView != null){
+            mSelectedImageView.setImageTintList(ColorStateList.valueOf(Color.parseColor("#757575")));
+            mSelectedImageView = null;
             mSelectedBluetoothDevice = null;
         }
 
         // and set the new bluetooth device.
         mSelectedBluetoothDevice = device;
-        notifyDataSetInvalidated();
+        notifyDataSetChanged();
     }
 
     /**
@@ -200,8 +235,8 @@ public class OBDDeviceListAdapter extends ArrayAdapter<BluetoothDevice> {
      * @return true if the device is in this adapter.
      */
     public boolean contains(BluetoothDevice device) {
-        for (int i = 0, size = getCount(); i != size; i++) {
-            if (getItem(i).equals(device))
+        for (int i = 0, size = pairedDevices.size(); i != size; i++) {
+            if (pairedDevices.get(i).equals(device))
                 return true;
         }
         return false;
@@ -210,26 +245,27 @@ public class OBDDeviceListAdapter extends ArrayAdapter<BluetoothDevice> {
     /**
      * View holder class holding all views of a single row of the adapter.
      */
-    static class ViewHolder {
+    static class OBDViewHolder extends RecyclerView.ViewHolder {
 
         public final View mContentView;
 
         // All the views of a row to lookup for.
+        @BindView(R.id.obd_selection_layout)
+        protected ConstraintLayout obdSelectionLayout;
         @BindView(R.id.activity_obd_selection_layout_paired_list_entry_image)
         protected ImageView mImageView;
         @BindView(R.id.activity_obd_selection_layout_paired_list_entry_text)
         protected TextView mTextView;
-        @BindView(R.id.activity_obd_selection_layout_paired_list_entry_delete)
-        protected ImageButton mDeleteButton;
-        @BindView(R.id.activity_obd_selection_layout_paired_list_entry_radio)
-        protected AppCompatRadioButton mRadioButton;
+        @BindView(R.id.activity_obd_selection_layout_paired_list_entry_text_add)
+        protected TextView mTextViewAdd;
 
         /**
          * Constructor.
          *
          * @param content the parent view of the listrow.
          */
-        ViewHolder(View content) {
+        OBDViewHolder(View content) {
+            super(content);
             this.mContentView = content;
             // Inject the annotated views.
             ButterKnife.bind(this, content);
