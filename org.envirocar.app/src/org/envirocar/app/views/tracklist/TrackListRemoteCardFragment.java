@@ -21,6 +21,13 @@ package org.envirocar.app.views.tracklist;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import androidx.annotation.Nullable;
+import androidx.interpolator.view.animation.FastOutSlowInInterpolator;
+import androidx.lifecycle.ViewModelProviders;
+import androidx.transition.Fade;
+import androidx.transition.Slide;
+import androidx.transition.TransitionManager;
+
+import android.view.Gravity;
 import android.view.View;
 
 import com.squareup.otto.Subscribe;
@@ -36,9 +43,15 @@ import org.envirocar.core.events.NewUserSettingsEvent;
 import org.envirocar.core.exception.NotConnectedException;
 import org.envirocar.core.exception.UnauthorizedException;
 import org.envirocar.core.logging.Logger;
+import org.envirocar.core.trackprocessing.statistics.TrackStatisticsProvider;
 
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 
 import rx.Observer;
 import rx.Subscriber;
@@ -57,14 +70,48 @@ public class TrackListRemoteCardFragment extends AbstractTrackListCardFragment<
 
     private boolean hasLoadedRemote = false;
     private boolean hasLoadedStored = false;
-    private boolean isSorted = false;
-
+    private boolean dateFilter = false;
+    private boolean carFilter = false;
+    private boolean mvVisible = true;
+    private Date startDate;
+    private Date endDate;
+    private String carName;
+    private Integer sortC = 0;
+    private Integer sortO = 1;
+    private FilterViewModel filterViewModel;
+    private SortViewModel sortViewModel;
+    private List<Track> remoteList = Collections.synchronizedList(new ArrayList<>());
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        MainActivityComponent mainActivityComponent =  BaseApplication.get(getActivity()).getBaseApplicationComponent().plus(new MainActivityModule(getActivity()));
+        MainActivityComponent mainActivityComponent = BaseApplication.get(getActivity()).getBaseApplicationComponent().plus(new MainActivityModule(getActivity()));
         mainActivityComponent.inject(this);
+        filterViewModel = ViewModelProviders.of(this.getActivity()).get(FilterViewModel.class);
+        sortViewModel = ViewModelProviders.of(this.getActivity()).get(SortViewModel.class);
+
+        filterViewModel.getFilterActive().observe(this, item -> {
+            dateFilter = filterViewModel.getFilterDate().getValue();
+            startDate = filterViewModel.getFilterDateStart().getValue();
+            endDate = filterViewModel.getFilterDateEnd().getValue();
+            carFilter = filterViewModel.getFilterCar().getValue();
+            carName = filterViewModel.getFilterCarName().getValue();
+            updateView();
+        });
+
+        sortViewModel.getSortActive().observe(this, item -> {
+            sortC = sortViewModel.getSortChoice().getValue();
+            if (sortViewModel.getSortOrder().getValue())
+                sortO = 1;
+            else
+                sortO = -1;
+            updateView();
+        });
+
+        sortViewModel.getMapActive().observe(this, item-> {
+            mvVisible = sortViewModel.getMapChoice().getValue();
+            updateView();
+        });
     }
 
     @Override
@@ -185,7 +232,7 @@ public class TrackListRemoteCardFragment extends AbstractTrackListCardFragment<
         // Show the downloading text notification.
         ECAnimationUtils.animateShowView(getActivity(), holder.mDownloadNotification,
                 R.anim.fade_in);
-        holder.mProgressCircle.show();
+        //holder.mProgressCircle.show();
         track.setDownloadState(Track.DownloadState.DOWNLOADING);
 
         mTrackDAOHandler.fetchRemoteTrackObservable(track)
@@ -195,26 +242,35 @@ public class TrackListRemoteCardFragment extends AbstractTrackListCardFragment<
 
                     @Override
                     public void onCompleted() {
+                        LOG.info("Track " + track.getRemoteID() + " downloaded. Setting ViewHolder");
+                        mRecyclerViewAdapter.bindTrackViewHolder(holder, track, true);
+
+                        // and hide the download button
+                        ECAnimationUtils.animateHideView(getActivity(), R.anim.fade_out,
+                                holder.mDownloadButton, holder
+                                        .mDownloadNotification);
+                        /*
                         holder.mProgressCircle.beginFinalAnimation();
                         holder.mProgressCircle.attachListener(() -> {
                             // When the visualization is finished, then Init the
                             // content view including its mapview and track details.
-                            mRecyclerViewAdapter.bindLocalTrackViewHolder(holder, track);
+                            mRecyclerViewAdapter.bindTrackViewHolder(holder, track, true);
 
                             // and hide the download button
                             ECAnimationUtils.animateHideView(getActivity(), R.anim.fade_out,
                                     holder.mProgressCircle, holder.mDownloadButton, holder
                                             .mDownloadNotification);
-                            ECAnimationUtils.animateShowView(getActivity(), holder.mContentView, R
-                                    .anim.fade_in);
+                            //ECAnimationUtils.animateShowView(getActivity(), holder.mContentView, R
+                            //        .anim.fade_in);
                         });
+                        */
                     }
 
                     @Override
                     public void onError(Throwable e) {
                         LOG.error("Not connected exception", e);
                         showSnackbar(R.string.track_list_communication_error);
-                        holder.mProgressCircle.hide();
+                        //holder.mProgressCircle.hide();
                         track.setDownloadState(Track.DownloadState.DOWNLOADING);
                         holder.mDownloadNotification.setText(
                                 R.string.track_list_error_while_downloading);
@@ -249,15 +305,12 @@ public class TrackListRemoteCardFragment extends AbstractTrackListCardFragment<
                         @Override
                         public void onStart() {
                             LOG.info("onStart() tracks in db");
-                            mMainThreadWorker.schedule(() -> {
-                                mProgressView.setVisibility(View.VISIBLE);
-                                mProgressText.setText(R.string.track_list_loading_tracks);
-                            });
+                            showProgressView(R.string.track_list_loading_tracks);
                         }
 
                         @Override
                         public void onCompleted() {
-
+                            LOG.info("onCompleted() tracks in db");
                         }
 
                         @Override
@@ -269,18 +322,20 @@ public class TrackListRemoteCardFragment extends AbstractTrackListCardFragment<
                         @Override
                         public void onNext(List<Track> tracks) {
                             LOG.info("onNext(" + tracks.size() + ") locally stored tracks");
+
                             for (Track track : tracks) {
                                 if (track.getMeasurements() != null &&
                                         !track.getMeasurements().isEmpty()) {
-                                    if (mTrackList.contains(track)) {
-                                        mTrackList.set(mTrackList.indexOf(track), track);
+                                    if (remoteList.contains(track)) {
+                                        remoteList.set(remoteList.indexOf(track), track);
                                     } else {
-                                        mTrackList.add(track);
+                                        remoteList.add(track);
                                     }
                                 }
                             }
 
                             hasLoadedStored = true;
+                            // Sort the list and update the list
                             updateView();
                         }
                     }));
@@ -293,10 +348,7 @@ public class TrackListRemoteCardFragment extends AbstractTrackListCardFragment<
                         @Override
                         public void onStart() {
                             LOG.info("onStart() tracks in db");
-                            mMainThreadWorker.schedule(() -> {
-                                mProgressView.setVisibility(View.VISIBLE);
-                                mProgressText.setText(R.string.track_list_loading_tracks);
-                            });
+                            showProgressView(R.string.track_list_loading_tracks);
                         }
 
                         @Override
@@ -310,43 +362,47 @@ public class TrackListRemoteCardFragment extends AbstractTrackListCardFragment<
 
                             if (e instanceof NotConnectedException) {
                                 showSnackbar(R.string.track_list_loading_remote_tracks_error);
-                                if (mTrackList.isEmpty()) {
+                                if (remoteList.isEmpty()) {
                                     showText(R.drawable.img_disconnected,
                                             R.string.track_list_bg_no_connection,
                                             R.string.track_list_bg_no_connection_sub);
                                 }
                             } else if (e instanceof UnauthorizedException) {
                                 showSnackbar(R.string.track_list_bg_unauthorized);
-                                if (mTrackList.isEmpty()) {
+                                if (remoteList.isEmpty()) {
                                     showText(R.drawable.img_logged_out,
                                             R.string.track_list_bg_unauthorized,
                                             R.string.track_list_bg_unauthorized_sub);
                                 }
                             }
-
-                            ECAnimationUtils.animateHideView(getActivity(), mProgressView,
-                                    R.anim.fade_out);
+                            hideProgressView();
                         }
 
                         @Override
                         public void onNext(List<Track> tracks) {
                             LOG.info("onNext(" + tracks.size() + ") remotely stored tracks");
-
                             // Add all tracks to the track list that are not in the
                             // list so far
                             for (Track track : tracks) {
-                                if (!mTrackList.contains(track)) {
-                                    mTrackList.add(track);
+                                if (!remoteList.contains(track)) {
+                                    remoteList.add(track);
                                 }
                             }
                             hasLoadedRemote = true;
-
                             // Sort the list and update the list
                             updateView();
+
                         }
                     }));
 
             return null;
+        }
+    }
+
+    public void setTrackList() {
+        for (Track track : remoteList) {
+            if (!mTrackList.contains(track))
+                mTrackList.add(track);
         }
     }
 
@@ -362,24 +418,124 @@ public class TrackListRemoteCardFragment extends AbstractTrackListCardFragment<
     }
 
     private void updateView() {
+        LOG.info("updateView()");
         if (hasLoadedStored && hasLoadedRemote) {
-            if (!isSorted) {
-                isSorted = true;
-                Collections.sort(mTrackList);
-            }
-            ECAnimationUtils.animateHideView(getActivity(), mProgressView, R.anim.fade_out);
-
+            LOG.info("Tracked loaded.");
+            setTrackList();
+            hideProgressView();
             if (mTrackList.isEmpty()) {
-                showText(R.drawable.img_tracks,
-                        R.string.track_list_bg_no_remote_tracks,
-                        R.string.track_list_bg_no_remote_tracks_sub);
+                LOG.info("No tracks.");
+                showNoTracksInfo(false);
+            } else {
+                mRecyclerView.removeAllViews();
+                mRecyclerViewAdapter.setGuideline(mvVisible);
+                TransitionManager.beginDelayedTransition(mRecyclerView, new Slide(Gravity.LEFT).
+                        setDuration(1000).
+                        setInterpolator(new FastOutSlowInInterpolator()));
+                if (dateFilter) {
+                    for (int i = 0; i < mTrackList.size(); ++i) {
+                        Track track = mTrackList.get(i);
+                        SimpleDateFormat simpleDateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault());
+                        try {
+                            Date trackDateStart = simpleDateFormat.parse(track.getBegin());
+                            Date trackDateEnd = simpleDateFormat.parse(track.getEnd());
+                            if (trackDateStart.before(startDate) || trackDateEnd.after(endDate)) {
+                                mTrackList.remove(i);
+                                i--;
+                            }
+                        } catch (Exception e) {
+                            LOG.error("Error: ", e);
+                        }
+                    }
+                }
+                if (carFilter) {
+                    for (int i = 0; i < mTrackList.size(); ++i) {
+                        Track track = mTrackList.get(i);
+                        String trackCarName = track.getCar().getManufacturer() + " " + track.getCar().getModel();
+                        if (!carName.equalsIgnoreCase(trackCarName)) {
+                            mTrackList.remove(i);
+                            i--;
+                        }
+                    }
+                }
+
+                switch (sortC) {
+                    case 0:
+                        Collections.sort(mTrackList, new Comparator<Track>() {
+                            @Override
+                            public int compare(Track track1, Track track2) {
+                                int res = track1.getBegin().compareTo(track2.getBegin());
+                                return res*sortO;
+                            }
+                        });
+                        break;
+
+                    case 1:
+                        Collections.sort(mTrackList, new Comparator<Track>() {
+                            @Override
+                            public int compare(Track lhs, Track rhs) {
+                                Double lhsLen;
+                                if (lhs.getLength() == null)
+                                    lhsLen = (((TrackStatisticsProvider) lhs).getDistanceOfTrack());
+                                else
+                                    lhsLen = lhs.getLength();
+
+                                Double rhsLen;
+                                if (rhs.getLength() == null)
+                                    rhsLen = (((TrackStatisticsProvider) rhs).getDistanceOfTrack());
+                                else
+                                    rhsLen = rhs.getLength();
+
+                                int res = lhsLen.compareTo(rhsLen);
+                                return res*sortO;
+                            }
+                        });
+                        break;
+
+                    case 2:
+                        Collections.sort(mTrackList, new Comparator<Track>() {
+                            @Override
+                            public int compare(Track lhs, Track rhs) {
+                                int res = Long.compare(lhs.getTimeInMillis(), rhs.getTimeInMillis());
+                                return res*sortO;
+                            }
+                        });
+                        break;
+
+                    case 3:
+                        Collections.sort(mTrackList, new Comparator<Track>() {
+                            @Override
+                            public int compare(Track lhs, Track rhs) {
+                                int res = lhs.getCar().getManufacturer().compareTo(rhs.getCar().getManufacturer());
+                                return res*sortO;
+                            }
+                        });
+                        break;
+
+                }
+                if (!mTrackList.isEmpty()) {
+                    mRecyclerView.setVisibility(View.VISIBLE);
+                    infoView.setVisibility(View.GONE);
+                    mRecyclerViewAdapter.notifyDataSetChanged();
+                } else {
+                    showNoTracksInfo(true);
+                }
             }
         }
+    }
 
-        if (!mTrackList.isEmpty()) {
-            mRecyclerView.setVisibility(View.VISIBLE);
-            infoView.setVisibility(View.GONE);
-            mRecyclerViewAdapter.notifyDataSetChanged();
+    private void showNoTracksInfo(Boolean afterFilter) {
+        TransitionManager.beginDelayedTransition(tracklistLayout, new Fade());
+        mRecyclerView.setVisibility(View.GONE);
+        if (!afterFilter) {
+            showText(R.drawable.img_tracks,
+                    R.string.track_list_bg_no_remote_tracks,
+                    R.string.track_list_bg_no_remote_tracks_sub);
+        } else {
+            showText(R.drawable.img_tracks,
+                    R.string.track_list_bg_no_tracks_after_filter,
+                    R.string.track_list_bg_no_tracks_after_filter_sub);
         }
+        infoView.setVisibility(View.VISIBLE);
     }
 }

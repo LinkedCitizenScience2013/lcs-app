@@ -25,6 +25,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParseException;
 
+import org.envirocar.core.entity.Car;
 import org.envirocar.core.entity.Track;
 import org.envirocar.core.entity.TrackImpl;
 import org.envirocar.core.logging.Logger;
@@ -62,12 +63,16 @@ public class RemoteTrackListDeserializer implements JsonDeserializer<List<Track>
 
             String begin = trackObject.get(Track.KEY_TRACK_PROPERTIES_BEGIN).getAsString();
             String end = trackObject.get(Track.KEY_TRACK_PROPERTIES_END).getAsString();
+            JsonObject carObject = trackObject.get(Track.KEY_TRACK_PROPERTIES_SENSOR)
+                    .getAsJsonObject();
+            Car car = context.deserialize(carObject, Car.class);
             // Create a new remote track.
             Track remoteTrack = new TrackImpl(Track.DownloadState.REMOTE);
             remoteTrack.setRemoteID(id);
             remoteTrack.setName(name);
             remoteTrack.setBegin(begin);
             remoteTrack.setEnd(end);
+            remoteTrack.setCar(car);
 
             if (trackObject.has(Track.KEY_TRACK_PROPERTIES_LENGTH)) {
                 double length = trackObject.get(Track.KEY_TRACK_PROPERTIES_LENGTH).getAsDouble();

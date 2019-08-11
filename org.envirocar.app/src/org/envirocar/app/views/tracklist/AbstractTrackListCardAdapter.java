@@ -20,11 +20,17 @@ package org.envirocar.app.views.tracklist;
 import android.os.AsyncTask;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
+import androidx.constraintlayout.widget.Guideline;
+
+import androidx.annotation.NonNull;
+
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.appcompat.widget.Toolbar;
 import android.view.View;
 import android.widget.ImageButton;
+import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import com.github.jorgecastilloprz.FABProgressCircle;
@@ -63,10 +69,11 @@ import rx.functions.Action0;
  */
 public abstract class AbstractTrackListCardAdapter<E extends
         AbstractTrackListCardAdapter
-                .TrackCardViewHolder> extends RecyclerView.Adapter<E> {
+                .TrackCardViewHolder> extends RecyclerView.Adapter<E> implements AbstractTrackListCardFragment.GuidelineInterface {
     private static final Logger LOG = Logger.getLogger(AbstractTrackListCardAdapter.class);
 
     protected static final DecimalFormat DECIMAL_FORMATTER_TWO = new DecimalFormat("#.##");
+    protected static final DecimalFormat DECIMAL_FORMATTER = new DecimalFormat("##");
     protected static final DateFormat DATE_FORMAT = DateFormat.getDateTimeInstance();
     protected static final DateFormat UTC_DATE_FORMATTER = new SimpleDateFormat("HH:mm:ss", Locale
             .ENGLISH);
@@ -76,6 +83,7 @@ public abstract class AbstractTrackListCardAdapter<E extends
     }
 
     protected final List<Track> mTrackDataset;
+    protected Boolean mvVisible;
     protected Scheduler.Worker mMainThreadWorker = AndroidSchedulers.mainThread().createWorker();
     protected final OnTrackInteractionCallback mTrackInteractionCallback;
 
@@ -122,50 +130,192 @@ public abstract class AbstractTrackListCardAdapter<E extends
         }
     }
 
+    String convertMillisToDate(Long timeInMillis) {
+        long diffSeconds = timeInMillis / 1000 % 60;
+        long diffMinutes = timeInMillis / (60 * 1000) % 60;
+        long diffHours = timeInMillis / (60 * 60 * 1000) % 24;
+        long diffDays = timeInMillis / (24 * 60 * 60 * 1000);
+        StringBuilder stringBuilder = new StringBuilder();
+        if (diffDays != 0) {
+            stringBuilder.append(diffDays);
+            stringBuilder.append(":");
+            if (diffHours > 1) {
+                stringBuilder.append(DECIMAL_FORMATTER.format(diffHours));
+            }
+            stringBuilder.append("D");
+        } else {
+            if (diffHours != 0) {
+                stringBuilder.append(diffHours);
+                if (diffMinutes != 0){
+                    stringBuilder.append(":");
+                    stringBuilder.append(DECIMAL_FORMATTER.format(diffMinutes));
+                }
+                stringBuilder.append("H");
+            } else {
+                if (diffMinutes!=0) {
+                    stringBuilder.append(diffMinutes);
+                    if (diffSeconds!=0) {
+                        stringBuilder.append(":");
+                        stringBuilder.append(DECIMAL_FORMATTER.format(diffSeconds));
+                    }
+                    stringBuilder.append("M");
+                } else {
+                    stringBuilder.append(diffSeconds);
+                    stringBuilder.append("S");
+                }
+            }
+        }
+        return stringBuilder.toString();
+    }
 
-    protected void bindLocalTrackViewHolder(TrackCardViewHolder holder, Track track) {
+    public void setGuideline(Boolean bool) {
+        mvVisible = bool;
+    }
+
+    protected void bindTrackViewHolder(TrackCardViewHolder holder, Track track, Boolean isDownloadedTrack) {
+        LOG.info("bindLocalTrackViewHolder()");
         holder.mDistance.setText("...");
         holder.mDuration.setText("...");
-        LOG.info("bindLocalTrackViewHolder()");
+        holder.mDurationAdd.setText("H");
+        holder.mDate.setText("...");
+        holder.mTime.setText("...");
+        holder.mTimeAdd.setText("PM");
+        if(!isDownloadedTrack) {
+            holder.guideline.setGuidelinePercent(0.37f);
+            holder.mDistance.setVisibility(View.GONE);
+            holder.distanceBox.setVisibility(View.GONE);
+            holder.mDistanceImg.setVisibility(View.GONE);
+            holder.mDuration.setVisibility(View.GONE);
+            holder.mDurationAdd.setVisibility(View.GONE);
+            holder.mDurationImg.setVisibility(View.GONE);
+            holder.mCarName.setVisibility(View.GONE);
+        } else {
+
+            if(mvVisible)
+                holder.guideline.setGuidelinePercent(0.37f);
+            else
+                holder.guideline.setGuidelinePercent(0f);
+
+            holder.mDistance.setVisibility(View.VISIBLE);
+            holder.distanceBox.setVisibility(View.VISIBLE);
+            holder.mDistanceImg.setVisibility(View.VISIBLE);
+            holder.mDuration.setVisibility(View.VISIBLE);
+            holder.mDurationAdd.setVisibility(View.VISIBLE);
+            holder.mDurationImg.setVisibility(View.VISIBLE);
+            holder.mCarName.setVisibility(View.VISIBLE);
+        }
+
         // First, load the track from the dataset
-        holder.mTitleTextView.setText(track.getName());
-
+        //holder.mTitleTextView.setText(track.getName());
         // Initialize the mapView.
-        initMapView(holder, track);
-
+        if (isDownloadedTrack) {
+            holder.mMapView.setVisibility(View.VISIBLE);
+            initMapView(holder, track);
+        } else
+            holder.mMapView.setVisibility(View.GONE);
         // Set all the view parameters.
         new AsyncTask<Void, Void, Void>() {
             @Override
             protected Void doInBackground(Void... params) {
-                // Set the duration text.
+
                 try {
-                    String date = UTC_DATE_FORMATTER.format(new Date(
-                            track.getDuration()));
+                    //Set Track Header and TimeImg
+                    Date trackDate;
+                    SimpleDateFormat formatter;
+                    if (isDownloadedTrack)
+                        trackDate = new Date(track.getStartTime());
+                    else {
+                        formatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+                        try {
+                            trackDate = formatter.parse(track.getBegin());
+                        } catch (Exception e) {
+                            LOG.error("Unable to parse date", e);
+                            trackDate = new Date();
+                        }
+                    }
+                    formatter = new SimpleDateFormat("HH", Locale.getDefault());
+                    Integer hh = Integer.parseInt(formatter.format(trackDate));
                     mMainThreadWorker.schedule(new Action0() {
                         @Override
                         public void call() {
-                            holder.mDuration.setText(date);
+                            if (hh < 4 || hh > 19) {
+                                holder.mTitleTextView.setText("Your Night Track");
+                                holder.mTimeImg.setImageResource(R.drawable.night);
+                            } else if (hh >= 4 && hh < 9) {
+                                holder.mTitleTextView.setText("Your Morning Track");
+                                holder.mTimeImg.setImageResource(R.drawable.morning);
+                            }
+                            else if (hh > 9 && hh < 15) {
+                                holder.mTitleTextView.setText("Your Afternoon Track");
+                                holder.mTimeImg.setImageResource(R.drawable.afternoon);
+                            } else {
+                                holder.mTitleTextView.setText("Your Evening Track");
+                                holder.mTimeImg.setImageResource(R.drawable.evening);
+                            }
                         }
                     });
 
-                    // Set the tracklength parameter.
-                    double distanceOfTrack = ((TrackStatisticsProvider) track).getDistanceOfTrack();
-                    String tracklength = String.format("%s km", DECIMAL_FORMATTER_TWO.format(
-                            distanceOfTrack));
+                    // Set Car Name
+                    String carName = track.getCar().getModel();
                     mMainThreadWorker.schedule(new Action0() {
                         @Override
                         public void call() {
-                            holder.mDistance.setText(tracklength);
+                            holder.mCarName.setText(carName);
                         }
                     });
+
+                    //Set Date and Time of Track
+                    String trackDateS = new SimpleDateFormat("MMM dd, yyyy", Locale.getDefault()).format(trackDate);
+                    String trackTimeS = new SimpleDateFormat("KK:mm", Locale.getDefault()).format(trackDate);
+                    String trackTimeS1 = new SimpleDateFormat("a", Locale.getDefault()).format(trackDate);
+                    mMainThreadWorker.schedule(new Action0() {
+                        @Override
+                        public void call() {
+                            holder.mDate.setText(trackDateS);
+                            holder.mTime.setText(trackTimeS);
+                            holder.mTimeAdd.setText(trackTimeS1);
+                        }
+                    });
+
+                    if (isDownloadedTrack) {
+                        // Set the duration text.
+                        String temp = convertMillisToDate(track.getTimeInMillis());
+                        mMainThreadWorker.schedule(new Action0() {
+                            @Override
+                            public void call() {
+                                if (temp != "" || temp !=null) {
+                                    String t1 = temp.substring(0, temp.length()-1);
+                                    String t2 = temp.substring(temp.length()-1);
+                                    holder.mDuration.setText(t1);
+                                    holder.mDurationAdd.setText(t2);
+                                }
+                            }
+                        });
+
+                        // Set the tracklength parameter.
+                        double distanceOfTrack = ((TrackStatisticsProvider) track).getDistanceOfTrack();
+                        String tracklength = String.format("%s", DECIMAL_FORMATTER_TWO.format(
+                                distanceOfTrack));
+                        mMainThreadWorker.schedule(new Action0() {
+                            @Override
+                            public void call() {
+                                holder.mDistance.setText(tracklength);
+                            }
+                        });
+                    }
 
                 } catch (NoMeasurementsException e) {
                     LOG.warn(e.getMessage(), e);
                     mMainThreadWorker.schedule(new Action0() {
                         @Override
                         public void call() {
-                            holder.mDistance.setText("0 km");
+                            holder.mDistance.setText("0");
                             holder.mDuration.setText("0:00");
+                            holder.mDate.setText("Jan 1, 2019");
+                            holder.mTime.setText("12:00");
+                            holder.mTimeAdd.setText("AM");
+                            holder.mCarName.setText("NA");
+                            holder.mTitleTextView.setText("Your Track");
                         }
                     });
                 }
@@ -200,6 +350,7 @@ public abstract class AbstractTrackListCardAdapter<E extends
                     mTrackInteractionCallback.onUploadTrackClicked(track);
                     break;
             }
+
             return false;
         });
 
@@ -236,7 +387,6 @@ public abstract class AbstractTrackListCardAdapter<E extends
                         tep.moveCamera(CameraUpdateFactory.newLatLngBounds(viewBbox, 50));
                     }
                 });
-
             }
         });
     }
@@ -255,44 +405,6 @@ public abstract class AbstractTrackListCardAdapter<E extends
         holder.mMapView.onStop();
     }
 
-//    private void initRouteCoordinates(Track track) {
-//        // Create a list to store our line coordinates.
-//        routeCoordinates.clear();
-//        List<Measurement> temp = track.getMeasurements();
-//        for (Measurement measurement : temp) {
-//            routeCoordinates.add(Point.fromLngLat(measurement.getLongitude(), measurement.getLatitude()));
-//        }
-//
-//        latLngs.clear();
-//        for (int i = 0; i < routeCoordinates.size(); ++i) {
-//            latLngs.add(new LatLng(routeCoordinates.get(i).latitude(), routeCoordinates.get(i).longitude()));
-//        }
-//
-//        if (latLngs.size() == 1) {
-//            LatLng latLng = latLngs.get(0);
-//            mViewBoundingBox = LatLngBounds.from(
-//                    latLng.getLatitude() + 0.01,
-//                    latLng.getLongitude() + 0.01,
-//                    latLng.getLatitude() - 0.01,
-//                    latLng.getLongitude() - 0.01);
-//        } else {
-//            mTrackBoundingBox = new LatLngBounds.Builder()
-//                    .includes(latLngs)
-//                    .build();
-//
-//            double latRatio = Math.max(mTrackBoundingBox.getLatitudeSpan() / 10.0, 0.01);
-//            double lngRatio = Math.max(mTrackBoundingBox.getLongitudeSpan() / 10.0, 0.01);
-//
-//            // The view bounding box of the pathoverlay
-//            mViewBoundingBox = LatLngBounds.from(
-//                    mTrackBoundingBox.getLatNorth() + latRatio,
-//                    mTrackBoundingBox.getLonEast() + lngRatio,
-//                    mTrackBoundingBox.getLatSouth() - latRatio,
-//                    mTrackBoundingBox.getLonWest() - lngRatio);
-//        }
-//
-//    }
-
     /**
      *
      */
@@ -302,14 +414,33 @@ public abstract class AbstractTrackListCardAdapter<E extends
 
         @BindView(R.id.fragment_tracklist_cardlayout_toolbar)
         protected Toolbar mToolbar;
-        @BindView(R.id.fragment_tracklist_cardlayout_toolbar_title)
+        @BindView(R.id.track_details_attributes_header_title)
         protected TextView mTitleTextView;
-        @BindView(R.id.fragment_tracklist_cardlayout_content)
-        protected View mContentView;
+        @BindView(R.id.track_details_attributes_header_car)
+        protected TextView mCarName;
+        @BindView(R.id.guideline3)
+        protected Guideline guideline;
+        @BindView(R.id.track_details_attributes_header_date)
+        protected TextView mDate;
+        @BindView(R.id.track_details_attributes_header_time)
+        protected TextView mTime;
+        @BindView(R.id.track_details_attributes_header_time_add)
+        protected TextView mTimeAdd;
+        @BindView(R.id.track_details_attributes_image_time)
+        protected ImageView mTimeImg;
         @BindView(R.id.track_details_attributes_header_distance)
         protected TextView mDistance;
+        @BindView(R.id.track_details_attributes_image_distance)
+        protected ImageView mDistanceImg;
+        @BindView(R.id.distanceBox)
+        protected LinearLayout distanceBox;
         @BindView(R.id.track_details_attributes_header_duration)
         protected TextView mDuration;
+        @BindView(R.id.track_details_attributes_header_duration_add)
+        protected TextView mDurationAdd;
+        @BindView(R.id.track_details_attributes_image_duration)
+        protected ImageView mDurationImg;
+        protected MapboxMap mapboxMap;
         @BindView(R.id.fragment_tracklist_cardlayout_map)
         protected MapView mMapView;
         @BindView(R.id.fragment_tracklist_cardlayout_invis_mapbutton)

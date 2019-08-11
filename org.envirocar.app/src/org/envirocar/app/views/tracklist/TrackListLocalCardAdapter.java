@@ -67,16 +67,16 @@ public class TrackListLocalCardAdapter extends AbstractTrackListCardAdapter<
 
     @Override
     public void onBindViewHolder(final LocalTrackCardViewHolder holder, int position) {
-        bindLocalTrackViewHolder(holder, mTrackDataset.get(position));
+        bindTrackViewHolder(holder, mTrackDataset.get(position), true);
     }
 
-    public void onLowMemory(){
-        for(MapView mapView : mapViews){
+    public void onLowMemory() {
+        for(MapView mapView : mapViews) {
             mapView.onLowMemory();
         }
     }
 
-    public void onDestroy(){
+    public void onDestroy() {
         for (MapView mapView : mapViews) {
             mapView.onPause();
             mapView.onStop();

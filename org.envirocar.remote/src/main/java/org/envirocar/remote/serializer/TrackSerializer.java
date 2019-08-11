@@ -48,9 +48,12 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.lang.reflect.Type;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -231,7 +234,7 @@ public class TrackSerializer implements JsonSerializer<Track>, JsonDeserializer<
                 "";
         Double length = properties.has(Track.KEY_TRACK_PROPERTIES_LENGTH) ?
                 properties.get(Track.KEY_TRACK_PROPERTIES_LENGTH).getAsDouble() :
-                new Double(0);
+                (double)0;
         // Parse the car object.
         JsonObject carObject = properties.get(Track.KEY_TRACK_PROPERTIES_SENSOR)
                 .getAsJsonObject();
@@ -257,11 +260,19 @@ public class TrackSerializer implements JsonSerializer<Track>, JsonDeserializer<
         track.setRemoteID(id);
         track.setName(name);
         track.setDescription(description);
+        track.setCar(car);
+        track.setMeasurements(measurements); // Storing happens here...
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTimeInMillis(measurements.get(0).getTime());
+        SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault());
+        if(begin.equals(""))
+            begin = format.format(calendar.getTime());
+        calendar.setTimeInMillis(measurements.get(measurements.size() - 1).getTime());
+        if(end.equals(""))
+            end = format.format(calendar.getTime());
         track.setBegin(begin);
         track.setEnd(end);
         track.setLength(length);
-        track.setCar(car);
-        track.setMeasurements(measurements); // Storing happens here...
 
         return track;
     }

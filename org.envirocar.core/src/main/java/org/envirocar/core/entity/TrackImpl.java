@@ -28,6 +28,7 @@ import org.envirocar.core.util.TrackMetadata;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -121,6 +122,7 @@ public class TrackImpl implements Track, TrackStatisticsProvider {
         track.setCar(car);
         track.setStartTime(startTime);
         track.setEndTime(endTime);
+        track.setLength(length);
         track.setMetadata(metadata);
         track.setTrackStatus(trackStatus);
         track.setMeasurements(new ArrayList<>(measurements));
@@ -242,7 +244,19 @@ public class TrackImpl implements Track, TrackStatisticsProvider {
 
     @Override
     public String getBegin() {
-        return begin;
+        if(this.begin != null)
+        return this.begin;
+        else
+        {
+            Calendar calendar = Calendar.getInstance();
+            calendar.setTimeInMillis(measurements.get(0).getTime());
+            SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault());
+            String begin = format.format(calendar.getTime());
+            this.setBegin(begin);
+            return begin;
+
+        }
+
     }
 
     @Override
@@ -252,7 +266,16 @@ public class TrackImpl implements Track, TrackStatisticsProvider {
 
     @Override
     public String getEnd() {
-        return end;
+        if(this.end != null)
+            return this.end;
+        else{
+            Calendar calendar = Calendar.getInstance();
+            SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault());
+            calendar.setTimeInMillis(measurements.get(measurements.size() - 1).getTime());
+            String end = format.format(calendar.getTime());
+            this.setEnd(end);
+            return end;
+        }
     }
 
     @Override
@@ -265,8 +288,8 @@ public class TrackImpl implements Track, TrackStatisticsProvider {
         SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.getDefault());
         Date date1 = null, date2 = null;
         try {
-            date1 = format.parse(begin);
-            date2 = format.parse(end);
+            date1 = format.parse(getBegin());
+            date2 = format.parse(getEnd());
         }catch (Exception e){
             LOG.error("Error in getTimeInMillis ", e);
         }

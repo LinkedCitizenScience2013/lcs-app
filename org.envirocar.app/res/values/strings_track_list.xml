@@ -47,6 +47,8 @@
     <string name="track_list_bg_no_local_tracks_sub">You have 0 local tracks</string>
     <string name="track_list_bg_no_remote_tracks">NO UPLOADED TRACKS</string>
     <string name="track_list_bg_no_remote_tracks_sub">You have 0 uploaded tracks</string>
+    <string name="track_list_bg_no_tracks_after_filter">NO TRACKS</string>
+    <string name="track_list_bg_no_tracks_after_filter_sub">No tracks in current range</string>
     <string name="track_list_bg_not_logged_in">NOT LOGGED IN</string>
     <string name="track_list_bg_not_logged_in_sub">To access your remote tracks\nyou have to log in fist.</string>
     <string name="track_list_bg_no_connection">NOT CONNECTED</string>
@@ -72,5 +74,12 @@
     <string name="track_list_upload_all_tracks_title">Upload All Local Tracks?</string>
     <string name="track_list_upload_all_tracks_content">You are about to upload all tracks. This means that all tracks will be uploaded and assigned to your account.\n\nDo you want to continue?</string>
     <string name="track_list_uploading_please_wait">Please wait...</string>
+
+    <string-array name="sort_options">
+        <item>By Date</item>
+        <item>By Length</item>
+        <item>By Duration</item>
+        <item>By Car</item>
+    </string-array>
 
 </resources>
