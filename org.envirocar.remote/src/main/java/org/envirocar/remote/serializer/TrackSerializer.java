@@ -162,9 +162,10 @@ public class TrackSerializer implements JsonSerializer<Track>, JsonDeserializer<
         JsonObject result = new JsonObject();
         result.addProperty(Track.KEY_TRACK_TYPE, "FeatureCollection");
         //TODO result.addProperty(Track.KEY_TRACK_PROPERTIES_LENGTH, src.getLengthOfTrack());
+        result.addProperty(Track.KEY_TRACK_PROPERTIES_LENGTH, src.getLength());
+        result.addProperty(Track.KEY_TRACK_PROPERTIES_CREATED,src.getCreated());
         result.addProperty(Track.KEY_TRACK_PROPERTIES_BEGIN,src.getBegin());
         result.addProperty(Track.KEY_TRACK_PROPERTIES_END,src.getEnd());
-        result.addProperty(Track.KEY_TRACK_PROPERTIES_LENGTH, src.getLength());
         result.add(Track.KEY_TRACK_PROPERTIES, trackProperties);
         result.add(Track.KEY_TRACK_FEATURES, trackFeatures);
 
@@ -220,6 +221,9 @@ public class TrackSerializer implements JsonSerializer<Track>, JsonDeserializer<
         String name = properties.has(Track.KEY_TRACK_PROPERTIES_NAME) ?
                 properties.get(Track.KEY_TRACK_PROPERTIES_NAME).getAsString() :
                 ("unnamed Track #" + id);
+        String created = properties.has(Track.KEY_TRACK_PROPERTIES_CREATED) ?
+                properties.get(Track.KEY_TRACK_PROPERTIES_CREATED).getAsString() :
+                "";
         String description = properties.has(Track.KEY_TRACK_PROPERTIES_DESCRIPTION) ?
                 properties.get(Track.KEY_TRACK_PROPERTIES_DESCRIPTION).getAsString() :
                 "";
@@ -257,6 +261,7 @@ public class TrackSerializer implements JsonSerializer<Track>, JsonDeserializer<
         track.setRemoteID(id);
         track.setName(name);
         track.setDescription(description);
+        track.setCreated(created);
         track.setBegin(begin);
         track.setEnd(end);
         track.setLength(length);

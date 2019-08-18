@@ -66,6 +66,7 @@ public class RemoteTrackListDeserializer implements JsonDeserializer<List<Track>
             Track remoteTrack = new TrackImpl(Track.DownloadState.REMOTE);
             remoteTrack.setRemoteID(id);
             remoteTrack.setName(name);
+            remoteTrack.setCreated(begin);
             remoteTrack.setBegin(begin);
             remoteTrack.setEnd(end);
 

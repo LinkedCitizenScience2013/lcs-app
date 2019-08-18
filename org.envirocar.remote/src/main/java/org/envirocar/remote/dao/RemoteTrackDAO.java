@@ -34,6 +34,11 @@ import org.envirocar.remote.service.TrackService;
 import org.envirocar.remote.util.EnvirocarServiceUtils;
 
 import java.io.IOException;
+import java.text.DateFormat;
+import java.text.FieldPosition;
+import java.text.ParsePosition;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.List;
 
 import javax.inject.Inject;
@@ -130,6 +135,58 @@ public class RemoteTrackDAO extends BaseRemoteDAO<TrackDAO, TrackService> implem
         } catch (ResourceConflictException e) {
             throw new DataRetrievalFailureException(e);
         }
+    }
+
+    @Override
+    public List<Track> getTrackinPeriod(Date after, Date before) throws NotConnectedException,
+            UnauthorizedException {
+        final TrackService trackService = EnviroCarService.getTrackService();
+        SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
+        String afterD = formatter.format(after);
+        String beforeD = formatter.format(before);
+        String during = afterD +","+beforeD;
+        LOG.info("calling getTracksinPeriod with following dates: after "+afterD+" before "+beforeD);
+        Call<List<Track>> remoteTrackCall = trackService.getTracksInPeriod(userManager.getUser()
+                .getUsername(), during);
+
+        try {
+            // Execute the call
+            Response<List<Track>> remoteTracksResponse = remoteTrackCall.execute();
+
+            if (!remoteTracksResponse.isSuccessful()) {
+                LOG.severe("Error while retrieving the list of remote tracks");
+                EnvirocarServiceUtils.assertStatusCode(remoteTracksResponse.code(),
+                        remoteTracksResponse.message());
+            }
+
+            // Return the list of remotetracks.
+            LOG.info("Successful Response of getTracksinPeriod: Tracks retrieved "+remoteTracksResponse.body().size());
+            return remoteTracksResponse.body();
+        } catch (IOException e) {
+            throw new NotConnectedException(e);
+        } catch (ResourceConflictException e) {
+            throw new NotConnectedException(e);
+        }
+    }
+
+    @Override
+    public Observable<List<Track>> getTrackinPeriodObservable(final Date after, final Date before) {
+        return Observable.create(
+                new Observable.OnSubscribe<List<Track>>() {
+                    @Override
+                    public void call(Subscriber<? super List<Track>> subscriber) {
+                        try {
+                            List<Track> remoteTracks = getTrackinPeriod(after, before);
+                            LOG.info("Observable created and "+remoteTracks.size()+" tracks present");
+                            subscriber.onNext(remoteTracks);
+                            subscriber.onCompleted();
+                        } catch (Exception e) {
+                            LOG.error("Error: ",e);
+                            subscriber.onError(e);
+                        }
+                    }
+                }
+        );
     }
 
     @Override

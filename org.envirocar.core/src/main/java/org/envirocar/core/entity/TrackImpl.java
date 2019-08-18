@@ -45,6 +45,7 @@ public class TrackImpl implements Track, TrackStatisticsProvider {
     protected String remoteID;
     protected String name;
     protected String description;
+    protected String created;
     protected Car car;
     protected Long lastModified;
     protected Long startTime;
@@ -197,6 +198,16 @@ public class TrackImpl implements Track, TrackStatisticsProvider {
     @Override
     public void setLastModified(long lastModified) {
         this.lastModified = lastModified;
+    }
+
+    @Override
+    public String getCreated(){
+        return this.created;
+    }
+
+    @Override
+    public void setCreated(String created){
+        this.created = created;
     }
 
     @Override

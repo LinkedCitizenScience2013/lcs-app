@@ -51,6 +51,14 @@ public interface Track extends BaseEntity<Track>, Comparable<Track> {
     String KEY_TRACK_FEATURES_PROPERTIES_PHENOMENONS_VALUE = "value";
     String KEY_TRACK_FEATURES_PROPERTIES_PHENOMENONS_UNIT = "unit";
 
+    String KEY_STATISTICS = "statistics";
+    String KEY_STATISTICS_MAX = "max";
+    String KEY_STATISTICS_MIN = "min";
+    String KEY_STATISTICS_AVG = "avg";
+    String KEY_STATISTICS_PHENOMENON = "phenomenon";
+    String KEY_STATISTICS_PHENOMENON_NAME = "name";
+    String KEY_STATISTICS_PHENOMENON_UNIT = "unit";
+
     enum TrackStatus {
         ONGOING {
             @Override
@@ -97,6 +105,10 @@ public interface Track extends BaseEntity<Track>, Comparable<Track> {
     Long getLastModified();
 
     void setLastModified(long lastModified);
+
+    String getCreated();
+
+    void setCreated(String created);
 
     Long getStartTime() throws NoMeasurementsException;
 

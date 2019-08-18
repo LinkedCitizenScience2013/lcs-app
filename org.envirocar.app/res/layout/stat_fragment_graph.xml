@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/graphLayout"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <Button
+        android:id="@+id/dateButton"
+        android:layout_width="140dp"
+        android:layout_height="35dp"
+        android:layout_marginTop="12dp"
+        android:background="#CBECF8"
+        android:fontFamily="@font/roboto_medium"
+        android:text="Button"
+        android:textColor="#0065A0"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.5"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <lecho.lib.hellocharts.view.LineChartView
+        android:id="@+id/chart"
+        android:layout_width="0dp"
+        android:layout_height="200dp"
+        android:layout_marginTop="8dp"
+        android:padding="8dp"
+        android:visibility="invisible"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/dateButton" />
+
+    <ImageView
+        android:id="@+id/graph_loading_icon"
+        android:layout_width="@dimen/image_icon_s"
+        android:layout_height="@dimen/image_icon_s"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="8dp"
+        android:padding="2dp"
+        android:visibility="gone"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/arrow_right"
+        app:srcCompat="@drawable/baseline_refresh_black_24dp" />
+
+    <ImageView
+        android:id="@+id/info_img"
+        android:layout_width="80dp"
+        android:layout_height="80dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="20dp"
+        android:visibility="visible"
+        app:layout_constraintBottom_toTopOf="@+id/info_msg"
+        app:layout_constraintEnd_toStartOf="@+id/chart"
+        app:layout_constraintHorizontal_bias="0.5"
+        app:layout_constraintStart_toEndOf="@+id/chart"
+        app:layout_constraintTop_toTopOf="@+id/chart"
+        app:layout_constraintVertical_bias="0.8"
+        app:srcCompat="@drawable/no_tracks" />
+
+    <TextView
+        android:id="@+id/info_msg"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="40dp"
+        android:fontFamily="@font/roboto_medium"
+        android:text="@string/no_stats"
+        android:textColor="#9C9C9C"
+        android:textSize="@dimen/subtext"
+        android:visibility="visible"
+        app:layout_constraintBottom_toBottomOf="@+id/chart"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.496"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <ImageButton
+        android:id="@+id/arrow_left"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_marginEnd="32dp"
+        android:layout_marginRight="32dp"
+        android:background="#56FFFFFF"
+        app:layout_constraintBottom_toBottomOf="@+id/dateButton"
+        app:layout_constraintEnd_toStartOf="@+id/dateButton"
+        app:layout_constraintTop_toTopOf="@+id/dateButton"
+        app:srcCompat="@drawable/arrow_left" />
+
+    <ImageButton
+        android:id="@+id/arrow_right"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_marginStart="32dp"
+        android:layout_marginLeft="32dp"
+        android:background="#56FFFFFF"
+        app:layout_constraintBottom_toBottomOf="@+id/dateButton"
+        app:layout_constraintStart_toEndOf="@+id/dateButton"
+        app:layout_constraintTop_toTopOf="@+id/dateButton"
+        app:srcCompat="@drawable/arrow_right" />
+
+</androidx.constraintlayout.widget.ConstraintLayout>
