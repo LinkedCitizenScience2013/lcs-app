@@ -55,7 +55,7 @@ import androidx.transition.TransitionSet;
 import com.afollestad.materialdialogs.MaterialDialog;
 import com.google.android.material.snackbar.Snackbar;
 import com.squareup.otto.Subscribe;
-import com.transitionseverywhere.Recolor;
+//import com.transitionseverywhere.Recolor;
 
 import org.envirocar.app.BuildConfig;
 import org.envirocar.app.R;
@@ -77,6 +77,7 @@ import org.envirocar.app.views.carselection.CarSelectionActivity;
 import org.envirocar.app.views.login.SigninActivity;
 import org.envirocar.app.views.login.SignupActivity;
 import org.envirocar.app.views.obdselection.OBDSelectionActivity;
+import org.envirocar.app.views.onboarding.OnboardingActivity;
 import org.envirocar.app.views.recordingscreen.GPSOnlyTrackRecordingScreen;
 import org.envirocar.app.views.recordingscreen.OBDPlusGPSTrackRecordingScreen;
 import org.envirocar.app.views.utils.DialogUtils;
@@ -239,6 +240,9 @@ public class DashBoardFragment extends BaseInjectorFragment {
     @BindView(R.id.fragment_startup_start_button_inner)
     protected Button mStartStopButtonInner;
 
+    @BindView(R.id.btn_startOnboarding)
+    protected Button startOnboarding;
+
     private MaterialDialog mConnectingDialog;
     protected ViewGroup obdGPSTransition;
     protected ViewGroup bannerTransition;
@@ -388,6 +392,13 @@ public class DashBoardFragment extends BaseInjectorFragment {
     protected void onRegisterInitiatorButtonClicked() {
         Intent intent = new Intent(getActivity(), SignupActivity.class);
         intent.putExtra("from", "register");
+        startActivity(intent);
+    }
+
+    @OnClick(R.id.btn_startOnboarding)
+    protected void onStartOnboardingClicked(){
+        Intent intent = new Intent(getActivity(), OnboardingActivity.class);
+        intent.putExtra("test-call", true);
         startActivity(intent);
     }
 
@@ -1182,7 +1193,6 @@ public class DashBoardFragment extends BaseInjectorFragment {
 
     private void updateStartStopButton(int background, String text, boolean enabled) {
         TransitionSet transitionSet = new TransitionSet()
-                .addTransition(new Recolor())
                 .addTarget(R.id.fragment_startup_start_button_inner);
 
         TransitionManager.beginDelayedTransition(frameTransition, transitionSet);

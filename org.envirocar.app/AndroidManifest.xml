@@ -43,11 +43,25 @@
         android:theme="@style/Theme.Cario">
 
         <!-- Activities -->
+        <activity android:name=".views.onboarding.OnboardingActivity"
+            android:label="@string/app_name"
+            android:launchMode="singleTop"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.Cario">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
         <activity
             android:name=".views.trackdetails.TrackDetailsActivity"
             android:screenOrientation="portrait" />
         <activity
             android:name=".views.trackdetails.MapExpandedActivity"
+            android:screenOrientation="portrait" />
+        <activity
+            android:name=".views.onboarding.OnboardingOBDActivity"
             android:screenOrientation="portrait" />
         <activity
             android:name=".views.carselection.CarSelectionActivity"
@@ -125,11 +139,6 @@
             android:launchMode="singleTop"
             android:screenOrientation="portrait"
             android:theme="@style/Theme.Cario">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
         </activity>
         <activity
             android:name=".views.recordingscreen.OBDPlusGPSTrackRecordingScreen"
@@ -149,6 +158,9 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/provider_paths" />
         </provider>
+        <meta-data
+            android:name="preloaded_fonts"
+            android:resource="@array/preloaded_fonts" />
 
     </application>
 

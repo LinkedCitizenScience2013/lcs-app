@@ -79,6 +79,20 @@
 
     <string name="gps_track_details">*This is a GPS based track. It cannot be uploaded to the open data.</string>
     <string name="dashboard_signin_prompt">Sign in to upload your tracks</string>
+
+    <string name="onboarding_next">Next</string>
+    <string name="onboarding_skip">Skip</string>
+    <string name="action_sign_up">Sign Up</string>
+    <string name="onboarding_subtitle">Start Today. \nJoin the Community.</string>
+    <string name="onboarding_3_txt">How much have you travelled in the past month? How much fuel does your car consume on each trip?</string>
+    <string name="onboarding_3_txt1">enviroCar offers a variety of interactive analysis and visualisation tools, map products and APIs to answer these and similar questions.</string>
+    <string name="onboarding_2_txt">Contribute your data to research studies. Help to jointly optimize the traffic flow and make mobility more sustainable</string>
+    <string name="onboarding_txt2">Upload your recorded tracks to help enrich the enviroCar community data store.
+enviroCar provides free and open access to the the community\'s anonymized tracks.</string>
+    <string name="login_user_already_signed_in">There is already a user signed in. Do you want to go to your Dashboard?</string>
+    <string name="login_go_to_dashboard">Go to Dashboard</string>
+    <string name="login_logout_user">Log Out</string>
+
     <string name="report_issue_text">Timestamps are automatically included in the logs. Sending us reports helps us reproduce unexpected behavior or crashes. This makes enviroCar better and more stable. Click the send button below to email this report to us.</string>
     <string name="report_issue_bottom_text">This feature uses the default \"Send To\" mechanism.
 	    If you invoke it with your Email client, you can easily send the report via email. If you do not have an Email client installed,
@@ -116,5 +130,6 @@
     </string-array>
 
     <string name="submit">Submit</string>
+    <string name="obd_selection_help_text">If you need help connecting to the OBD Adapter, press the info icon in the toolbar</string>
 
 </resources>
