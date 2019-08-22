@@ -20,6 +20,7 @@ package org.envirocar.app.views;
 
 
 import android.Manifest;
+import android.app.Activity;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
@@ -27,6 +28,8 @@ import android.os.Bundle;
 import android.provider.Settings;
 import androidx.annotation.NonNull;
 import com.google.android.material.snackbar.Snackbar;
+
+import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.core.app.ActivityCompat;
 import androidx.fragment.app.Fragment;
 import android.view.LayoutInflater;
@@ -75,9 +78,7 @@ public class OthersFragment extends BaseInjectorFragment {
     protected TrackDAOHandler mTrackDAOHandler;
 
     @BindView(R.id.othersLogOut)
-    protected LinearLayout othersLogOut;
-    @BindView(R.id.othersLogOutDivider)
-    protected View othersLogOutDivider;
+    protected ConstraintLayout othersLogOut;
 
     private Scheduler.Worker mMainThreadWorker = AndroidSchedulers.mainThread().createWorker();
     private final Scheduler.Worker mBackgroundWorker = Schedulers.newThread().createWorker();
@@ -93,11 +94,9 @@ public class OthersFragment extends BaseInjectorFragment {
 
         if(mUserManager.isLoggedIn()){
             othersLogOut.setVisibility(View.VISIBLE);
-            othersLogOutDivider.setVisibility(View.VISIBLE);
         }
         else{
             othersLogOut.setVisibility(View.GONE);
-            othersLogOutDivider.setVisibility(View.GONE);
         }
 
         return view;
@@ -114,18 +113,21 @@ public class OthersFragment extends BaseInjectorFragment {
     protected void onLogBookClicked() {
         Intent intent = new Intent(getActivity(), LogbookActivity.class);
         startActivity(intent);
+        ((Activity)getContext()).overridePendingTransition(R.anim.translate_slide_in_right_fragment,R.anim.fade_out);
     }
 
     @OnClick(R.id.othersSettings)
     protected void onSettingsClicked() {
         Intent intent = new Intent(getActivity(), SettingsActivity.class);
         startActivity(intent);
+        ((Activity)getContext()).overridePendingTransition(R.anim.translate_slide_in_right_fragment,R.anim.fade_out);
     }
 
     @OnClick(R.id.othersHelp)
     protected void onHelpClicked() {
         Intent intent = new Intent(getActivity(), HelpActivity.class);
         startActivity(intent);
+        ((Activity)getContext()).overridePendingTransition(R.anim.translate_slide_in_right_fragment,R.anim.fade_out);
     }
 
     @OnClick(R.id.othersReportIssue)
@@ -134,6 +136,7 @@ public class OthersFragment extends BaseInjectorFragment {
             //access granted
             Intent intent = new Intent(getActivity(), SendLogFileActivity.class);
             startActivity(intent);
+            ((Activity)getContext()).overridePendingTransition(R.anim.translate_slide_in_right_fragment,R.anim.fade_out);
         }else{
             requestPermissions();
         }
@@ -327,11 +330,10 @@ public class OthersFragment extends BaseInjectorFragment {
                     // Show a snackbar that indicates the finished logout
                     Snackbar.make(getActivity().findViewById(R.id.navigation),
                             String.format(getString(R.string.goodbye_message), user
-                                    .getUsername()),
+                                    .getName()),
                             Snackbar.LENGTH_LONG).show();
                     //disable logout button
                     othersLogOut.setVisibility(View.GONE);
-                    othersLogOutDivider.setVisibility(View.GONE);
                 });
 
             });

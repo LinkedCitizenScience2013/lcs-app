@@ -18,16 +18,20 @@
  */
 package org.envirocar.app.views.logbook;
 
+import android.app.AlertDialog;
 import android.os.Bundle;
+
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.snackbar.Snackbar;
 import androidx.appcompat.widget.Toolbar;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
+
+import android.view.MenuItem;
 import android.view.View;
-import android.widget.AdapterView;
 import android.widget.ImageView;
-import android.widget.ListView;
 import android.widget.TextView;
 
-import com.afollestad.materialdialogs.MaterialDialog;
 
 import org.envirocar.app.main.BaseApplicationComponent;
 import org.envirocar.app.R;
@@ -73,12 +77,14 @@ public class LogbookActivity extends BaseInjectorActivity implements LogbookUiLi
 
     @BindView(R.id.activity_logbook_toolbar)
     protected Toolbar toolbar;
+    @BindView(R.id.logbook_info)
+    protected ImageView logbookInfo;
     @BindView(R.id.activity_logbook_header)
     protected View headerView;
     @BindView(R.id.activity_logbook_toolbar_new_fueling_fab)
-    protected View newFuelingFab;
+    protected FloatingActionButton newFuelingFab;
     @BindView(R.id.activity_logbook_toolbar_fuelinglist)
-    protected ListView fuelingList;
+    protected RecyclerView fuelingList;
     @BindView(R.id.overlay)
     protected View overlayView;
 
@@ -96,7 +102,7 @@ public class LogbookActivity extends BaseInjectorActivity implements LogbookUiLi
 //    @BindView(R.id.activity_logbook_no_fuelings_info_view)
 //    protected View noFuelingsView;
 
-    protected LogbookListAdapter fuelingListAdapter;
+    protected LogbookAdapter fuelingListAdapter;
     protected final List<Fueling> fuelings = new ArrayList<Fueling>();
 
     private LogbookAddFuelingFragment addFuelingFragment;
@@ -119,30 +125,58 @@ public class LogbookActivity extends BaseInjectorActivity implements LogbookUiLi
         ButterKnife.bind(this);
 
         // Initializes the Toolbar.
+        toolbar.inflateMenu(R.menu.menu_test);
         setSupportActionBar(toolbar);
         getSupportActionBar().setTitle("Logbook");
         getSupportActionBar().setDisplayShowHomeEnabled(true);
         getSupportActionBar().setDisplayHomeAsUpEnabled(true);
 
-        fuelingListAdapter = new LogbookListAdapter(this, fuelings);
-        fuelingList.setAdapter(fuelingListAdapter);
-
-        fuelingList.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
+        logbookInfo.setOnClickListener(new View.OnClickListener() {
             @Override
-            public boolean onItemLongClick(AdapterView<?> parent, View view, int position, long
-                    id) {
-                final Fueling fueling = fuelings.get(position);
-                new MaterialDialog.Builder(LogbookActivity.this)
-                        .title(R.string.logbook_dialog_delete_fueling_header)
-                        .content(R.string.logbook_dialog_delete_fueling_content)
-                        .positiveText(R.string.menu_delete)
-                        .negativeText(R.string.cancel)
-                        .onPositive((materialDialog, dialogAction) -> deleteFueling(fueling))
-                        .show();
-                return false;
+            public void onClick(View view) {
+                AlertDialog.Builder b = new AlertDialog.Builder(LogbookActivity.this);
+                b.setMessage("Long press the card if you want to delete it.");
+                b.show();
             }
         });
 
+        fuelingListAdapter = new LogbookAdapter(this, fuelings, new LogbookUiListener() {
+            @Override
+            public void onHideAddFuelingCard() {
+                LogbookActivity.this.hideAddFuelingCard();
+            }
+
+            @Override
+            public void onFuelingUploaded(Fueling fueling) {
+                LogbookActivity.this.onFuelingUploaded(fueling);
+            }
+
+            @Override
+            public void deleteFueling(Fueling fueling) {
+                LogbookActivity.this.deleteFueling(fueling);
+            }
+        });
+        fuelingList.setLayoutManager(new LinearLayoutManager(this));
+        fuelingList.setAdapter(fuelingListAdapter);
+        fuelingList.addOnScrollListener(new RecyclerView.OnScrollListener() {
+            @Override
+            public void onScrolled(RecyclerView recyclerView, int dx,int dy){
+                super.onScrolled(recyclerView, dx, dy);
+
+                if (dy >0) {
+                    // Scroll Down
+                    if (newFuelingFab.isShown()) {
+                        newFuelingFab.hide();
+                    }
+                }
+                else if (dy <0) {
+                    // Scroll Up
+                    if (!newFuelingFab.isShown()) {
+                        newFuelingFab.show();
+                    }
+                }
+            }
+        });
         // When the user is logged in, then download its fuelings. Otherwise, show a "not logged
         // in" notification.
         if (userManager.isLoggedIn()) {
@@ -150,7 +184,7 @@ public class LogbookActivity extends BaseInjectorActivity implements LogbookUiLi
         } else {
             LOG.info("User is not logged in.");
             headerView.setVisibility(View.GONE);
-            newFuelingFab.setVisibility(View.GONE);
+            newFuelingFab.hide();
             showNotLoggedInInfo();
         }
     }
@@ -166,6 +200,15 @@ public class LogbookActivity extends BaseInjectorActivity implements LogbookUiLi
     }
 
     @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        if (item.getItemId() == android.R.id.home) {
+            onBackPressed();
+            return true;
+        }
+        return false;
+    }
+
+    @Override
     public void onBackPressed() {
         LOG.info("onBackPressed()");
         if(addFuelingFragment != null && addFuelingFragment.isVisible()){
@@ -174,6 +217,7 @@ public class LogbookActivity extends BaseInjectorActivity implements LogbookUiLi
             return;
         }
         super.onBackPressed();
+        overridePendingTransition(R.anim.translate_slide_in_left_fragment,R.anim.fade_out);
     }
 
     @OnClick(R.id.activity_logbook_toolbar_new_fueling_fab)
@@ -212,6 +256,7 @@ public class LogbookActivity extends BaseInjectorActivity implements LogbookUiLi
      */
     private void downloadFuelings() {
         LOG.info("downloadFuelings()");
+        showInfoBackground("Loading...", "Getting fuelings from the server");
         subscription.add(daoProvider.getFuelingDAO().getFuelingsObservable()
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
@@ -251,7 +296,7 @@ public class LogbookActivity extends BaseInjectorActivity implements LogbookUiLi
      *
      * @param fueling the fueling to delete.
      */
-    private void deleteFueling(final Fueling fueling) {
+    public void deleteFueling(final Fueling fueling) {
         subscription.add(daoProvider.getFuelingDAO()
                 .deleteFuelingObservable(fueling)
                 .subscribeOn(Schedulers.io())
@@ -316,6 +361,13 @@ public class LogbookActivity extends BaseInjectorActivity implements LogbookUiLi
         ECAnimationUtils.animateShowView(this, infoBackground, R.anim.fade_in);
     }
 
+    private void showInfoBackground(String firstLine, String secondLine) {
+        LOG.info("showInfoBackground()");
+        infoBackgroundFirst.setText(firstLine);
+        infoBackgroundSecond.setText(secondLine);
+        ECAnimationUtils.animateShowView(this, infoBackground, R.anim.fade_in);
+    }
+
     /**
      * Shows the AddFuelingCard
      */
@@ -344,7 +396,8 @@ public class LogbookActivity extends BaseInjectorActivity implements LogbookUiLi
                 .remove(addFuelingFragment)
                 .commit();
         addFuelingFragment = null;
-        ECAnimationUtils.animateShowView(LogbookActivity.this, newFuelingFab, R.anim.fade_in);
+        ECAnimationUtils.animateHideView(this, overlayView, R.anim.fade_out);
+        newFuelingFab.show();
     }
 
     private void showSnackbarInfo(int resourceID) {

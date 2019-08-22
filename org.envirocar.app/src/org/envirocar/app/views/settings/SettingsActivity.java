@@ -97,6 +97,8 @@ public class SettingsActivity extends BaseInjectorActivity {
             getSupportActionBar().setTitle(R.string.settings);
         } else {
             super.onBackPressed();
+
+            overridePendingTransition(R.anim.translate_slide_in_left_fragment,R.anim.fade_out);
         }
     }
 
