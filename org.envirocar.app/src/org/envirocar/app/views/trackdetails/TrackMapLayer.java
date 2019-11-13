@@ -55,16 +55,17 @@ import static com.mapbox.mapboxsdk.style.layers.PropertyFactory.lineWidth;
 /**
  * @author dewall
  */
-public class TrackMapLayer extends MapLayer{
+public class TrackMapLayer extends MapLayer {
     private static final Logger LOG = Logger.getLogger(TrackMapLayer.class);
 
     public static final String GRADIENT_LAYER = "gradient-layer";
     public static final String GRADIENT_SOURCE = "source-layer";
 
-    private Float gradMax, gradMin;
+    private Double gradMax, gradMin;
     private final Track mTrack;
     private List<Measurement> measurementList = new ArrayList<>();
-    private Boolean hasNoMeasurements;
+    private Boolean hasMeasurements;
+    private Boolean hasLatLng;
     protected LatLngBounds mTrackBoundingBox;
     protected LatLngBounds mViewBoundingBox;
     protected LatLngBounds mScrollableLimitBox;
@@ -77,14 +78,13 @@ public class TrackMapLayer extends MapLayer{
     public TrackMapLayer(Track track) {
         super();
         mTrack = track;
-        if(mTrack.getMeasurements() != null)
-        {
+        if (mTrack.getMeasurements() != null) {
             measurementList = mTrack.getMeasurements();
-            hasNoMeasurements = false;
+            hasMeasurements = true;
+        } else {
+            hasMeasurements = false;
+            hasLatLng = false;
         }
-        else
-            hasNoMeasurements = true;
-
         initPath();
     }
 
@@ -92,8 +92,7 @@ public class TrackMapLayer extends MapLayer{
      * Initializes the track path and the bounding boxes required by the mapviews.
      */
     private void initPath() {
-        if(!hasNoMeasurements)
-        {
+        if (hasMeasurements) {
             // For each measurement value add the longitude and latitude coordinates as a new
             // mappoint to the point list. In addition, try to find out the maximum and minimum
             // lon/lat coordinates for the zoom value of the mapview.
@@ -101,22 +100,25 @@ public class TrackMapLayer extends MapLayer{
                 double latitude = measurement.getLatitude();
                 double longitude = measurement.getLongitude();
 
-                if(latitude == 0.0 || longitude == 0.0) {
+                if (latitude == 0.0 || longitude == 0.0) {
                     LOG.warn("An coordinate was 0.0");
                     continue;
                 }
                 addPoint(latitude, longitude);
             }
 
-            //If there is only one point added, create another dummy point that is close to
-            // the first point. If there are no points, add 2 dummy points
-            if(mPoints.size() == 0){
-                hasNoMeasurements = true;
+            //If there are no points
+            if (mPoints.size() == 0) {
+                hasMeasurements = false;
+                hasLatLng = false;
                 addPoint(7.635147738274369, 51.96057578167202);
                 addPoint(7.635078051137631, 51.96024289279303);
+            } else {
+                hasLatLng = true;
             }
 
         } else {
+            LOG.info("Track has no measurements");
             addPoint(7.635147738274369, 51.96057578167202);
             addPoint(7.635078051137631, 51.96024289279303);
         }
@@ -124,8 +126,8 @@ public class TrackMapLayer extends MapLayer{
         setBoundingBoxes();
     }
 
-    protected void setBoundingBoxes(){
-        if(mPoints.size() == 1){
+    protected void setBoundingBoxes() {
+        if (mPoints.size() == 1) {
             LatLng latLng = latLngs.get(0);
             mViewBoundingBox = LatLngBounds.from(
                     latLng.getLatitude() + 0.01,
@@ -153,7 +155,6 @@ public class TrackMapLayer extends MapLayer{
                     mTrackBoundingBox.getLatSouth() - 0.05,
                     mTrackBoundingBox.getLonWest() - 0.05);
         }
-
     }
 
     /**
@@ -184,16 +185,17 @@ public class TrackMapLayer extends MapLayer{
         return mScrollableLimitBox;
     }
 
-    public LineLayer getGradientLineLayer(Measurement.PropertyKey propertyKey){
-
-        if(!hasNoMeasurements)
-        {
+    public LineLayer getGradientLineLayer(Measurement.PropertyKey propertyKey) {
+        gradMax = gradMin = (double) 0;
+        LOG.info("getGradientLineLayer with " + propertyKey.toString());
+        if (hasMeasurements && hasLatLng) {
+            LOG.info("Track has measurements.");
             float size = (float)measurementList.size(), i= 0f;
-            if(size>2)
-            {
+            if (size >= 2) {
                 List<Double> propertyValues = new ArrayList<>();
-                for(Measurement measurement : measurementList){
-                    if(measurement.hasProperty(propertyKey))
+
+                for (Measurement measurement : measurementList) {
+                    if (measurement.hasProperty(propertyKey))
                         propertyValues.add(measurement.getProperty(propertyKey));
                     else {
                         propertyValues.add((double) 0);
@@ -201,15 +203,25 @@ public class TrackMapLayer extends MapLayer{
                     }
                 }
 
-                Double min ;
-                if(propertyKey.equals(Measurement.PropertyKey.SPEED))
-                    min = (double) 0;
-                else
-                    min = Collections.min(propertyValues);
+                Double min;
+                Double max;
 
-                Double max = Collections.max(propertyValues);
-                gradMax = max.floatValue();
-                gradMin = min.floatValue();
+                if (propertyKey.equals(Measurement.PropertyKey.SPEED))
+                    min = (double) 0;
+                else {
+                    if (Collections.min(propertyValues) != null)
+                        min = Collections.min(propertyValues);
+                    else
+                        min = (double) 0;
+                }
+
+                if (Collections.max(propertyValues) != null)
+                    max = Collections.max(propertyValues);
+                else
+                    max = (double) 0;
+
+                gradMax = max;
+                gradMin = min;
 
                 //Set the start and end colors for the map legend
                 int startColor = Color.parseColor("#00FF00");
@@ -217,7 +229,7 @@ public class TrackMapLayer extends MapLayer{
                 ArgbEvaluator evaluator = new ArgbEvaluator();
                 List<Expression.Stop> stops  = new ArrayList<>();
 
-                for(Double value : propertyValues){
+                for (Double value : propertyValues) {
                     //Calculate the color that each point on the line should be and add it to
                     // the list of stops
                     Double fraction = value / max;
@@ -236,6 +248,8 @@ public class TrackMapLayer extends MapLayer{
                         )));
 
             } else {
+                LOG.info("Not enough measurements. Returning default linestring");
+                // Line doesn't have enough points, returning the default blue linestring
                 return new LineLayer(GRADIENT_LAYER, GRADIENT_SOURCE).withProperties(
                         lineCap(Property.LINE_CAP_ROUND),
                         lineJoin(Property.LINE_JOIN_ROUND),
@@ -243,6 +257,7 @@ public class TrackMapLayer extends MapLayer{
                         lineColor(Color.parseColor("#0065A0")));
             }
         } else {
+            LOG.info("Track has no measurements");
             // Line has no points, so return a transparent linestring
             return new LineLayer(GRADIENT_LAYER, GRADIENT_SOURCE).withProperties(
                     lineCap(Property.LINE_CAP_ROUND),
@@ -252,37 +267,46 @@ public class TrackMapLayer extends MapLayer{
         }
     }
 
-    public GeoJsonSource getGradientGeoJSONSource(){
+    public GeoJsonSource getGradientGeoJSONSource() {
         return new GeoJsonSource(GRADIENT_SOURCE, FeatureCollection.fromFeatures(new Feature[] {Feature.fromGeometry(
                 LineString.fromLngLats(mPoints)
         )}), new GeoJsonOptions().withLineMetrics(true));
     }
 
-    public Float getGradMax() {
+    public Double getGradMax() {
         return gradMax;
     }
 
-    public Float getGradMin() {
+    public Double getGradMin() {
         return gradMin;
     }
 
     @Override
     public void setLineLayer() {
-        if(!hasNoMeasurements)
+        if (hasMeasurements) {
             lineLayer = new LineLayer(LAYER_NAME, SOURCE_NAME).withSourceLayer(SOURCE_NAME).withProperties(
-                PropertyFactory.lineColor(Color.parseColor("#0065A0")),
-                PropertyFactory.lineWidth(3f),
-                PropertyFactory.lineCap(Property.LINE_CAP_ROUND));
-        else
+                    PropertyFactory.lineColor(Color.parseColor("#0065A0")),
+                    PropertyFactory.lineWidth(3f),
+                    PropertyFactory.lineCap(Property.LINE_CAP_ROUND));
+        } else {
             lineLayer = new LineLayer(LAYER_NAME, SOURCE_NAME).withSourceLayer(SOURCE_NAME).withProperties(
                     PropertyFactory.lineColor(Color.TRANSPARENT),
                     PropertyFactory.lineWidth(3f),
                     PropertyFactory.lineCap(Property.LINE_CAP_ROUND));
+        }
     }
 
     @Override
     public LineLayer getLineLayer() {
         this.setLineLayer();
         return lineLayer;
+    }
+
+    public Boolean hasMeasurements() {
+        return hasMeasurements;
+    }
+
+    public Boolean hasLatLng() {
+        return hasLatLng;
     }
 }
