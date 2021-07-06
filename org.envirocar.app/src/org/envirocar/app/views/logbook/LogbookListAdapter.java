@@ -1,34 +1,36 @@
 /**
  * Copyright (C) 2013 - 2019 the enviroCar community
- *
+ * <p>
  * This file is part of the enviroCar app.
- *
+ * <p>
  * The enviroCar app is free software: you can redistribute it and/or
  * modify it under the terms of the GNU General Public License as published
  * by the Free Software Foundation, either version 3 of the License, or
  * (at your option) any later version.
- *
+ * <p>
  * The enviroCar app is distributed in the hope that it will be useful, but
  * WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General
  * Public License for more details.
- *
+ * <p>
  * You should have received a copy of the GNU General Public License along
  * with the enviroCar app. If not, see http://www.gnu.org/licenses/.
  */
 package org.envirocar.app.views.logbook;
 
-import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ArrayAdapter;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 
+import androidx.annotation.NonNull;
+import androidx.recyclerview.widget.RecyclerView;
+
 import org.envirocar.app.R;
+import org.envirocar.app.views.utils.DateUtils;
 import org.envirocar.core.entity.Car;
 import org.envirocar.core.entity.Fueling;
-import org.envirocar.app.views.utils.DateUtils;
 
 import java.text.DateFormat;
 import java.text.DecimalFormat;
@@ -37,15 +39,15 @@ import java.util.Date;
 import java.util.GregorianCalendar;
 import java.util.List;
 
-import butterknife.ButterKnife;
 import butterknife.BindView;
+import butterknife.ButterKnife;
 
 /**
  * TODO JavaDoc
  *
  * @author dewall
  */
-public class LogbookListAdapter extends ArrayAdapter<Fueling> {
+public class LogbookListAdapter extends RecyclerView.Adapter<LogbookListAdapter.FuelingViewHolder> {
     private static final DecimalFormat DECIMAL_FORMATTER = new DecimalFormat("#.##");
     private static final DateFormat DATE_FORMAT = DateFormat.getDateTimeInstance();
 
@@ -54,37 +56,32 @@ public class LogbookListAdapter extends ArrayAdapter<Fueling> {
     /**
      * Constructor.
      *
-     * @param context the context of the current scope.
      * @param objects the arraylist of fuelings.
      */
-    public LogbookListAdapter(Context context, List<Fueling> objects) {
-        super(context, -1, objects);
+    public LogbookListAdapter(List<Fueling> objects) {
         this.fuelings = objects;
     }
 
+    // Create new views
+    @NonNull
     @Override
-    public View getView(int position, View convertView, ViewGroup parent) {
+    public FuelingViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+        LayoutInflater inflater = LayoutInflater.from(parent.getContext());
+        View view = inflater.inflate(R.layout.activity_logbook_listentry, parent, false);
+        return new FuelingViewHolder(view);
+    }
+
+    // Bind the data to the view
+    @Override
+    public void onBindViewHolder(@NonNull FuelingViewHolder holder, int position) {
 
         final Fueling fueling = fuelings.get(position);
-
-        // Then inflate a new view for the car and create a holder
-        LayoutInflater inflater = (LayoutInflater) getContext().getSystemService(Context
-                .LAYOUT_INFLATER_SERVICE);
-
-        FuelingViewHolder holder = null;
-        if (convertView == null) {
-            convertView = inflater.inflate(R.layout.activity_logbook_listentry, parent, false);
-            holder = new FuelingViewHolder(convertView);
-            convertView.setTag(holder);
-        } else {
-            holder = (FuelingViewHolder) convertView.getTag();
-        }
 
         Calendar calendar = new GregorianCalendar();
         calendar.setTime(new Date(fueling.getTime()));
 
         holder.dateText.setText(DateUtils.getDateString(
-                getContext(), fueling.getTime()));
+                holder.itemView.getContext(), fueling.getTime()));
         holder.totalPrice.setText(String.format("%s €",
                 DECIMAL_FORMATTER.format(fueling.getCost())));
         holder.pricePerLiter.setText(String.format("%s l/€",
@@ -109,16 +106,15 @@ public class LogbookListAdapter extends ArrayAdapter<Fueling> {
                 View.VISIBLE : View.GONE);
         holder.filledUpView.setVisibility(fueling.isPartialFueling() ?
                 View.VISIBLE : View.GONE);
-
-        return convertView;
     }
 
+    // Returns the size of data list.
     @Override
-    public Fueling getItem(int position) {
-        return this.fuelings.get(position);
+    public int getItemCount() {
+        return fuelings.size();
     }
 
-    static class FuelingViewHolder {
+    static class FuelingViewHolder extends RecyclerView.ViewHolder {
         @BindView(R.id.activity_logbook_listentry_date)
         protected TextView dateText;
         @BindView(R.id.activity_logbook_listentry_kmliter)
@@ -138,6 +134,8 @@ public class LogbookListAdapter extends ArrayAdapter<Fueling> {
         protected View filledUpView;
         @BindView(R.id.activity_logbook_listentry_missedfillup)
         protected View missedFillUpView;
+        @BindView(R.id.ll_foreground_logbook)
+        protected LinearLayout foregroundView;
 
         /**
          * Constructor.
@@ -145,7 +143,9 @@ public class LogbookListAdapter extends ArrayAdapter<Fueling> {
          * @param view the core view to inject the subviews from.
          */
         FuelingViewHolder(View view) {
+            super(view);
             ButterKnife.bind(this, view);
         }
     }
+
 }
