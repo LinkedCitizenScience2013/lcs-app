@@ -299,7 +299,9 @@ public class CarSelectionActivity extends BaseInjectorActivity implements CarSel
      * @param msg the message that is gonna shown by the snackbar.
      */
     private void showSnackbar(String msg) {
-        Snackbar.make(mFab, msg, Snackbar.LENGTH_LONG).show();
+        Snackbar snackbar = Snackbar.make(mFab, msg, Snackbar.LENGTH_LONG);//.show();
+        snackbar.setBackgroundTint(getResources().getColor(R.color.blue_light_cario));
+        snackbar.show();
     }
 
     /**
